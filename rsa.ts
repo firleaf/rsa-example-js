@@ -38,7 +38,7 @@ const isPrime = (x: number) => {
  * @param nBit Length of number in bit.
  * @returns A nBit long number.
  */
-const getRandomNBitNumber = (nBit: number) =>
+const getRandomNBitNumber = (nBit: number): number =>
   parseInt(
     new Array(nBit)
       .fill(null)
@@ -52,7 +52,7 @@ const getRandomNBitNumber = (nBit: number) =>
  * @param nBit Length of number in bit.
  * @returns A nBit log prime number
  */
-const getNBitPrime = (nBit: number) => {
+const getNBitPrime = (nBit: number): number => {
   while (true) {
     const candidate = getRandomNBitNumber(nBit);
     if (isPrime(candidate)) return candidate;
@@ -93,12 +93,24 @@ const extendedEuclid = (
 };
 
 //RSA KEYGEN
+
+interface KeyPair {
+  priv: {
+    d: number;
+    N: number;
+  };
+  publ: {
+    e: number;
+    N: number;
+  };
+}
+
 /**
  * (Horrible) RSA key generation.
  * @see https://en.wikipedia.org/wiki/RSA_(cryptosystem)
  * @returns
  */
-const generateKeysIterative = (nBit: number, e_override?: number) => {
+const generateKeysIterative = (nBit: number, e_override?: number): KeyPair => {
   console.time("Generate");
   let p: number;
   let q: number;
@@ -137,62 +149,112 @@ const generateKeysIterative = (nBit: number, e_override?: number) => {
 
     isFound = !isEqual && isD && isE;
   } while (!isFound);
-  const privateKey = { d, N };
-  const publicKey = { e, N };
+  const priv = { d, N };
+  const publ = { e, N };
   console.timeEnd("Generate");
   return {
-    privateKey,
-    publicKey,
+    priv,
+    publ,
   };
 };
 
-const stringToCharCodeArray = (string: string) =>
+/**
+ * Convert a string to an array of char codes.
+ * @param string A String to be converted.
+ * @returns An array of char code numbers.
+ */
+const stringToCharCodeArray = (string: string): number[] =>
   string.split("").map((val) => val.charCodeAt(0));
 
-const charCodeArrayToString = (binArray: string[]) =>
-  binArray.map((val) => String.fromCharCode(parseInt(val))).join("");
+/**
+ * Convert an array of char codes to a string.
+ * @param array An array of char code numbers
+ * @returns A string defined by the char code array.
+ */
+const charCodeArrayToString = (array: number[]): string =>
+  array.map((val) => String.fromCharCode(val)).join("");
 
-const encrypt = (text: string, publicKey: { e: number; N: number }) => {
+/**
+ * Encrypt a single number.
+ * @param x The number to be encrypted.
+ * @param publ The public key.
+ * @returns The encrypted number.
+ */
+const encryptNumber = (x: number, publ: KeyPair["publ"]): number =>
+  parseInt((BigInt(x) ** BigInt(publ.e) % BigInt(publ.N)).toString());
+
+/**
+ * Decrypt a single number.
+ * @param x The number to be decrypted.
+ * @param priv The private key.
+ * @returns The decrypted number.
+ */
+const decryptNumber = (x: number, priv: KeyPair["priv"]): number =>
+  parseInt((BigInt(x) ** BigInt(priv.d) % BigInt(priv.N)).toString());
+
+/**
+ * Encrypt a string message.
+ * @param message The message to be encrypted.
+ * @param publ The public key.
+ * @returns The encrypted message as an array of numbers in which each number represents the encrypted char code.
+ * @see encryptNumber
+ */
+const encrypt = (message: string, publ: KeyPair["publ"]): number[] => {
   console.time("Encrypt");
-  const result = stringToCharCodeArray(text).map((item) => {
-    const value = BigInt(item);
-    const exponent = BigInt(publicKey.e);
-    const modulus = BigInt(publicKey.N);
-    const result = value ** exponent % modulus;
-    return result.toString();
-  });
+  const result = stringToCharCodeArray(message).map((item) =>
+    encryptNumber(item, publ)
+  );
   console.timeEnd("Encrypt");
   return result;
 };
 
-const decrypt = (
-  cipherText: string[],
-  privateKey: { d: number; N: number }
-) => {
+/**
+ * Decrypt a string message.
+ * @param cipher The cipher to be decrypted as an array of numbers in which each number represents the encrypted char code.
+ * @param priv The private key.
+ * @returns The decrypted string.
+ * @see decryptNumber
+ */
+const decrypt = (cipher: number[], priv: KeyPair["priv"]): string => {
   console.time("Decrypt");
-  const charCodeArray = cipherText.map((item) => {
-    const value = BigInt(item);
-    const exponent = BigInt(privateKey.d);
-    const modulus = BigInt(privateKey.N);
-    const result = value ** exponent % modulus;
-    return result.toString();
-  });
+  const charCodeArray = cipher.map((item) => decryptNumber(item, priv));
   const result = charCodeArrayToString(charCodeArray);
   console.timeEnd("Decrypt");
   return result;
 };
 
+/**
+ * Helper function for logging a result to console.
+ * @param m The clear text message.
+ * @param cipher The cipher text.
+ * @param decrypted The decrypted text.
+ * @param keyPair The key pair.
+ * @param keyLength The key length in bit.
+ */
+const logResults = (
+  m: string,
+  cipher: number[],
+  decrypted: string,
+  keyPair?: KeyPair,
+  keyLength?: number
+) => {
+  const obj: any = {};
+  obj["message"] = m;
+  obj["encrypted"] = charCodeArrayToString(cipher);
+  obj["decrypted"] = decrypted;
+  obj["equal"] = m === decrypted;
+  if (keyPair) {
+    obj["private"] = keyPair.priv;
+    obj["public"] = keyPair.publ;
+  }
+  if (keyLength) obj["length"] = keyLength + " Bit";
+  console.log(obj);
+};
+
 const keyPair = generateKeysIterative(keyLength, eOverride);
 
-const cipherText = encrypt(message, keyPair.publicKey);
+const cipher = encrypt(message, keyPair.publ);
 
-const decryptedText = decrypt(cipherText, keyPair.privateKey);
+const decrypted = decrypt(cipher, keyPair.priv);
 
-console.log({
-  message: message,
-  encrypted: charCodeArrayToString(cipherText),
-  decrypted: decryptedText,
-  equal: message === decryptedText,
-  keyLength: keyLength + " Bit",
-  ...keyPair,
-});
+logResults(message, cipher, decrypted, keyPair, keyLength);
