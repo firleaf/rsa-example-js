@@ -1,0 +1,31 @@
+{
+	"dockerComposeFile": "compose.yaml",
+	"service": "devcontainer",
+	"workspaceFolder": "/workspace",
+	"initializeCommand": ". .devcontainer/lifecycle/initialize",
+	"onCreateCommand": ". /tmp/create",
+	"updateContentCommand": ". /tmp/update-content",
+	"postCreateCommand": ". /tmp/post-create",
+	"postStartCommand": ". /tmp/post-start",
+	"postAttachCommand": ". /tmp/post-attach",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"esbenp.prettier-vscode",
+				"tamasfe.even-better-toml",
+				"oven.bun-vscode"
+			],
+			"settings": {
+				"[json]": {
+					"editor.defaultFormatter": "esbenp.prettier-vscode"
+				},
+				"[typescript]": {
+					"editor.defaultFormatter": "esbenp.prettier-vscode"
+				},
+				"[jsonc]": {
+					"editor.defaultFormatter": "esbenp.prettier-vscode"
+				}
+			}
+		}
+	}
+}

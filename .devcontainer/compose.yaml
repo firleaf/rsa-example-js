@@ -1,0 +1,14 @@
+services:
+  devcontainer:
+    build:
+      dockerfile: Containerfile
+    environment:
+      STACK_NAME: dev
+    volumes:
+      - ../:/workspace
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 20000
+    entrypoint: tail -f /dev/null
