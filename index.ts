@@ -1,12 +1,10 @@
-import { argv } from "process";
-
 // ARGUMENTS
 // Provide e.
-const argE = argv.find((arg) => arg.startsWith("--e="))?.split("=")[1];
-const eOverride = argE ? parseInt(argE) : undefined;
+const argE = Bun.argv.find((arg) => arg.startsWith("--e="))?.split("=")[1];
+const eOverride = argE ? BigInt(argE) : undefined;
 
 // Set key length in bit. Default is 16.
-const argLength = argv
+const argLength = Bun.argv
   .find((arg) => arg.startsWith("--length="))
   ?.split("=")[1];
 const keyLength = parseInt(argLength ?? "16");
@@ -16,19 +14,42 @@ if (keyLength % 2 !== 0)
   throw new Error("Key length has to be divisible by 2.");
 
 // Set message to be encrypted.
-const argMessage = argv
+const argMessage = Bun.argv
   .find((arg) => arg.startsWith("--message="))
   ?.split("=")[1];
 const message = argMessage ?? "Hello World!";
+
+/**
+ * Calculate n-th root of val
+ * Parameters:
+ * k: is n-th (default sqare root)
+ * limit: is maximum number of iterations (default: -1 no limit)
+ * Thanks to Kamil Kiełczewski on Stackoverflow.
+ * @see https://stackoverflow.com/questions/53683995/javascript-big-integer-square-root
+ */
+function nth_root(val: bigint, k = 2n, limit = -1) {
+  let o = 0n; // old approx value
+  let x = val;
+
+  while (x ** k !== k && x !== o && --limit) {
+    o = x;
+    x = ((k - 1n) * x + val / x ** (k - 1n)) / k;
+    if (limit < 0 && (x - o) ** 2n == 1n) break;
+  }
+
+  if ((val - (x - 1n) ** k) ** 2n < (val - x ** k) ** 2n) x = x - 1n;
+  if ((val - (x + 1n) ** k) ** 2n < (val - x ** k) ** 2n) x = x + 1n;
+  return x;
+}
 
 /**
  * Super low effort primality test.
  * @param x Number to be tested.
  * @returns A Boolean whether the number supplied is a prime number or not.
  */
-const isPrime = (x: number) => {
-  for (let i = 2; i <= Math.sqrt(x); i++) {
-    if (x % i === 0) return false;
+const isPrime = (x: bigint) => {
+  for (let i = 2n; i <= nth_root(x, 2n); i++) {
+    if (x % i === 0n) return false;
   }
   return true;
 };
@@ -38,13 +59,15 @@ const isPrime = (x: number) => {
  * @param nBit Length of number in bit.
  * @returns A nBit long number.
  */
-const getRandomNBitNumber = (nBit: number): number =>
-  parseInt(
-    new Array(nBit)
-      .fill(null)
-      .map((_, ind) => (ind === 0 ? 1 : Math.round(Math.random())))
-      .join(""),
-    2
+const getRandomNBitNumber = (nBit: number): bigint =>
+  BigInt(
+    parseInt(
+      new Array(nBit)
+        .fill(null)
+        .map((_, ind) => (ind === 0 ? 1 : Math.round(Math.random())))
+        .join(""),
+      2
+    )
   );
 
 /**
@@ -52,7 +75,7 @@ const getRandomNBitNumber = (nBit: number): number =>
  * @param nBit Length of number in bit.
  * @returns A nBit log prime number
  */
-const getNBitPrime = (nBit: number): number => {
+const getNBitPrime = (nBit: number): bigint => {
   while (true) {
     const candidate = getRandomNBitNumber(nBit);
     if (isPrime(candidate)) return candidate;
@@ -68,17 +91,17 @@ const getNBitPrime = (nBit: number): number => {
  * @returns An object with `a`, `s` and `t` so that `s*x + t*y = a = gcd(x,y)`.
  */
 const extendedEuclid = (
-  x: number,
-  y: number
-): { a: number; s: number; t: number } => {
+  x: bigint,
+  y: bigint
+): { a: bigint; s: bigint; t: bigint } => {
   let a = x;
   let b = y;
-  let s = 1;
-  let t = 0;
-  let u = 0;
-  let v = 1;
-  while (b !== 0) {
-    const q = Math.floor(a / b);
+  let s = 1n;
+  let t = 0n;
+  let u = 0n;
+  let v = 1n;
+  while (b !== 0n) {
+    const q = a / b;
     const b1 = b;
     b = a - q * b;
     a = b1;
@@ -96,12 +119,12 @@ const extendedEuclid = (
 
 interface KeyPair {
   priv: {
-    d: number;
-    N: number;
+    d: bigint;
+    N: bigint;
   };
   publ: {
-    e: number;
-    N: number;
+    e: bigint;
+    N: bigint;
   };
 }
 
@@ -110,14 +133,14 @@ interface KeyPair {
  * @see https://en.wikipedia.org/wiki/RSA_(cryptosystem)
  * @returns
  */
-const generateKeysIterative = (nBit: number, e_override?: number): KeyPair => {
+const generateKeysIterative = (nBit: number, e_override?: bigint): KeyPair => {
   console.time("Generate");
-  let p: number;
-  let q: number;
-  let N: number;
-  let e: number;
-  let d: number;
-  let phiN: number;
+  let p: bigint;
+  let q: bigint;
+  let N: bigint;
+  let e: bigint;
+  let d: bigint;
+  let phiN: bigint;
   let isFound = false;
   do {
     // Primes
@@ -128,10 +151,10 @@ const generateKeysIterative = (nBit: number, e_override?: number): KeyPair => {
     N = p * q;
 
     // Euler's totient function (instead of Carmichael function)
-    phiN = (p - 1) * (q - 1);
+    phiN = (p - 1n) * (q - 1n);
 
     // Encryption exponent
-    e = e_override ?? Math.floor(Math.random() * phiN);
+    e = e_override ?? BigInt(Math.floor(Math.random() * Number(phiN)));
 
     const { a, s } = extendedEuclid(e, phiN);
 
@@ -139,7 +162,7 @@ const generateKeysIterative = (nBit: number, e_override?: number): KeyPair => {
     d = s;
 
     // e and phiN are coprime
-    const isE = a === 1 && e < phiN;
+    const isE = a === 1n && e < phiN;
 
     // d is positive for use as exponent
     const isD = d >= 1;
@@ -180,8 +203,8 @@ const charCodeArrayToString = (array: number[]): string =>
  * @param publ The public key.
  * @returns The encrypted number.
  */
-const encryptNumber = (x: number, publ: KeyPair["publ"]): number =>
-  parseInt((BigInt(x) ** BigInt(publ.e) % BigInt(publ.N)).toString());
+const encryptNumber = (x: bigint, publ: KeyPair["publ"]): bigint =>
+  x ** publ.e % publ.N;
 
 /**
  * Decrypt a single number.
@@ -189,8 +212,8 @@ const encryptNumber = (x: number, publ: KeyPair["publ"]): number =>
  * @param priv The private key.
  * @returns The decrypted number.
  */
-const decryptNumber = (x: number, priv: KeyPair["priv"]): number =>
-  parseInt((BigInt(x) ** BigInt(priv.d) % BigInt(priv.N)).toString());
+const decryptNumber = (x: bigint, priv: KeyPair["priv"]): bigint =>
+  x ** priv.d % priv.N;
 
 /**
  * Encrypt a string message.
@@ -199,10 +222,10 @@ const decryptNumber = (x: number, priv: KeyPair["priv"]): number =>
  * @returns The encrypted message as an array of numbers in which each number represents the encrypted char code.
  * @see encryptNumber
  */
-const encrypt = (message: string, publ: KeyPair["publ"]): number[] => {
+const encrypt = (message: string, publ: KeyPair["publ"]): bigint[] => {
   console.time("Encrypt");
   const result = stringToCharCodeArray(message).map((item) =>
-    encryptNumber(item, publ)
+    encryptNumber(BigInt(item), publ)
   );
   console.timeEnd("Encrypt");
   return result;
@@ -215,9 +238,9 @@ const encrypt = (message: string, publ: KeyPair["publ"]): number[] => {
  * @returns The decrypted string.
  * @see decryptNumber
  */
-const decrypt = (cipher: number[], priv: KeyPair["priv"]): string => {
+const decrypt = (cipher: bigint[], priv: KeyPair["priv"]): string => {
   console.time("Decrypt");
-  const charCodeArray = cipher.map((item) => decryptNumber(item, priv));
+  const charCodeArray = cipher.map((item) => Number(decryptNumber(item, priv)));
   const result = charCodeArrayToString(charCodeArray);
   console.timeEnd("Decrypt");
   return result;
@@ -233,14 +256,14 @@ const decrypt = (cipher: number[], priv: KeyPair["priv"]): string => {
  */
 const logResults = (
   m: string,
-  cipher: number[],
+  cipher: bigint[],
   decrypted: string,
   keyPair?: KeyPair,
   keyLength?: number
 ) => {
   const obj: any = {};
   obj["message"] = m;
-  obj["encrypted"] = charCodeArrayToString(cipher);
+  obj["encrypted"] = charCodeArrayToString(cipher.map((item) => Number(item)));
   obj["decrypted"] = decrypted;
   obj["equal"] = m === decrypted;
   if (keyPair) {

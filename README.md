@@ -4,21 +4,10 @@ Very dirty implementation example of the [RSA algorithm](<https://en.wikipedia.o
 
 ## Usage
 
-### Install and build
-
-```bash
-npm i
-npm run build
-```
-
 ### Run
 
 ```bash
-node dist/rsa.js [--options]
-```
-
-```bash
-npm run rsa -- [--options]
+bun run rsa -- [--options]
 ```
 
 ## Options

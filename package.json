@@ -1,25 +1,14 @@
 {
   "name": "rsa-example-js",
-  "version": "1.0.0",
-  "description": "Very dirty implementation example of the RSA algorithm in JavaScript. Meant only for learning purposes.",
-  "main": "dist/rsa.js",
+  "module": "index.ts",
+  "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json --outDir dist",
-    "rsa": "node dist/rsa.js"
+    "rsa": "bun run index.ts"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/allwqre/rsa-example-js.git"
-  },
-  "author": "Paul Engelmeier <allwqre@pm.me>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/allwqre/rsa-example-js/issues"
-  },
-  "homepage": "https://github.com/allwqre/rsa-example-js#readme",
   "devDependencies": {
-    "@types/bignum": "^0.0.29",
-    "@types/node": "^17.0.41",
-    "typescript": "^4.7.3"
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
   }
 }
